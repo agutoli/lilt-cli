@@ -64,7 +64,10 @@ if 'delete_document_action' in args:
 
 if 'delete_oldest_document_action' in args:
     print("Deleting oldest document...")
-    doc = get_all_documents(args.project_id)[0]
+    docs = get_all_documents(args.project_id)
+    if len(docs) < 3:
+        raise Exception("Project should have at least 3 documents before executing this command!")
+    doc = docs[0]
     document_id = delete_document(doc["id"])
     print("Document '%s' deleted!" % doc["id"])
 

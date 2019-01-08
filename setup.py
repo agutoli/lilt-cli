@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='lilt_cli',
-    version='0.0.5',
+    version='1.0.0',
     packages=['lilt_cli'],
     scripts=['bin/lilt'],
     description = 'lilt client to help upload, download translations',
