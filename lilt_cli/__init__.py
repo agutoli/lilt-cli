@@ -31,14 +31,15 @@ def get_seguiments(docid, _type="source"):
             pass
     return seguiments
 
-def get_all_documents(project_id):
+def get_all_documents(project_id, name=None):
     payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
     res = requests.get(lilt_api_url + "/projects", params=payload, verify=False)
     allproj = res.json()
     documents = []
     for proj in allproj:
         for doc in proj["document"]:
-            documents.append(doc)
+            if name == doc['name']:
+                documents.append(doc)
     return documents
 
 def get_all_seguiments_by_project(project_id):

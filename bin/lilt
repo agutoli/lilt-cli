@@ -30,6 +30,7 @@ delete_doc_parser.add_argument('delete_document_action', action='store_true')
 delete_oldest_doc_parser = subparsers.add_parser('delete-oldest-document', help='delete oldest document')
 delete_oldest_doc_parser.add_argument('--api-key', action='store', help='API Key Authentication')
 delete_oldest_doc_parser.add_argument('--project-id', required=True, action='store', help='project id')
+delete_oldest_doc_parser.add_argument('--name', required=True, action='store', help='name of document')
 delete_oldest_doc_parser.add_argument('delete_oldest_document_action', action='store_true')
 
 list_documents_parser = subparsers.add_parser('list-documents', help='upload terms')
@@ -64,7 +65,7 @@ if 'delete_document_action' in args:
 
 if 'delete_oldest_document_action' in args:
     print("Deleting oldest document...")
-    docs = get_all_documents(args.project_id)
+    docs = get_all_documents(args.project_id, name=args.name)
     if len(docs) < 3:
         raise Exception("Project should have at least 3 documents before executing this command!")
     doc = docs[0]
