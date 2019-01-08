@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import json
+import os.path
+import argparse
+import sys, os
+
+from lilt_cli import (upload_document, get_all_documents, delete_document, get_all_translated_seguiments_by_project)
+
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers(help='commands')
+
+# # A create command
+download_parser = subparsers.add_parser('download', help='download translations')
+download_parser.add_argument('--api-key', required=True, action='store', help='API Key Authentication')
+download_parser.add_argument('--project-id', required=True, action='store', help='project id')
+download_parser.add_argument('--output-file', required=True, action='store', help='file output name')
+download_parser.add_argument('download_action', action='store_true')
+
+upload_parser = subparsers.add_parser('upload', help='upload terms')
+upload_parser.add_argument('--api-key', required=True, action='store', help='API Key Authentication')
+upload_parser.add_argument('--project-id', required=True, action='store', help='project id')
+upload_parser.add_argument('--filename', required=True, action='store', help='keys filename')
+upload_parser.add_argument('upload_action', action='store_true')
+
+delete_doc_parser = subparsers.add_parser('delete-document', help='delete document')
+delete_doc_parser.add_argument('--api-key', required=True, action='store', help='API Key Authentication')
+delete_doc_parser.add_argument('--document-id', required=True, action='store', help='document id')
+delete_doc_parser.add_argument('delete_document_action', action='store_true')
+
+delete_oldest_doc_parser = subparsers.add_parser('delete-oldest-document', help='delete oldest document')
+delete_oldest_doc_parser.add_argument('--api-key', required=True, action='store', help='API Key Authentication')
+delete_oldest_doc_parser.add_argument('--project-id', required=True, action='store', help='project id')
+delete_oldest_doc_parser.add_argument('delete_oldest_document_action', action='store_true')
+
+list_documents_parser = subparsers.add_parser('list-documents', help='upload terms')
+list_documents_parser.add_argument('--api-key', required=True, action='store', help='API Key Authentication')
+list_documents_parser.add_argument('--project-id', required=True, action='store', help='document id')
+list_documents_parser.add_argument('list_documents_action', action='store_true')
+
+args = parser.parse_args()
+
+if 'download_action' in args:
+    print("Downloading seguiments...")
+    os.environ["LILT_API_KEY"] = args.api_key
+    content = json.dumps(get_all_translated_seguiments_by_project(args.project_id), indent=2, sort_keys=True)
+    dir_path = os.path.join(os.getcwd(), args.output_file)
+    file = open(dir_path, "w")
+    file.write(content)
+    file.close()
+
+if 'upload_action' in args:
+    print("Uploading terms...")
+    os.environ["LILT_API_KEY"] = args.api_key
+    document_id = upload_document(args.filename, args.project_id)
+    print("New document created! #%s" % document_id)
+
+if 'delete_document_action' in args:
+    print("Deleting document...")
+    os.environ["LILT_API_KEY"] = args.api_key
+    delete_document(args.document_id)
+    print("Document deleted!")
+
+if 'delete_oldest_document_action' in args:
+    print("Deleting oldest document...")
+    os.environ["LILT_API_KEY"] = args.api_key
+    doc = get_all_documents(args.project_id)[0]
+    document_id = delete_document(doc["id"])
+    print("Document '%s' deleted!" % doc["id"])
+
+if 'list_documents_action' in args:
+    print("Listing documents...")
+    os.environ["LILT_API_KEY"] = args.api_key
+    docs = get_all_documents(args.project_id)
+    for doc in docs:
+        print(json.dumps(doc, indent=2))
