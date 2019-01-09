@@ -48,6 +48,9 @@ def get_all_seguiments_by_project(project_id):
     allproj = res.json()
     all_seguiments = {}
     for proj in allproj:
+        if not 'document' in proj:
+            continue
+
         for doc in proj["document"]:
             seguiments = get_seguiments(doc["id"])
             for id in seguiments:
