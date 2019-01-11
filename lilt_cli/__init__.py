@@ -77,12 +77,19 @@ def upload_document(filename, project_id):
 
     local_seguiments = json.loads(rawdata)
 
+    all_terms = {}
+    for seguiment in all_seguiments:
+        all_terms[all_seguiments[seguiment]['source']] = seguiment
+
     new_seguiments = {}
     for localseguiment in local_seguiments:
-        if localseguiment in all_seguiments:
-            new_seguiments[localseguiment] = all_seguiments[localseguiment]['source']
-        else:
+        if not ((localseguiment in all_seguiments) or (localseguiment in all_terms)):
+            # new_seguiments[all_seguiments[localseguiment]['translation']] = localseguiment
             new_seguiments[localseguiment] = localseguiment
+
+    for seguiment in all_seguiments:
+        if not seguiment in new_seguiments:
+            new_seguiments[all_seguiments[seguiment]['translation']] = all_seguiments[seguiment]['source']
 
     res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(new_seguiments), headers=headers, verify=False)
     document_id = res.json()["id"]
