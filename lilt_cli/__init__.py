@@ -16,7 +16,7 @@ def pretranslate_document(document_id):
     res = requests.post(lilt_api_url + "/documents/pretranslate", params=payload, data=json.dumps(jsonData), headers=headers, verify=False)
     return res.json()
 
-def get_seguiments(docid, _type="source"):
+def get_seguiments(docid):
     payload = {"key": os.environ["LILT_API_KEY"], "id": docid, "is_xliff": "true"}
     res = requests.get(lilt_api_url + "/documents/files", params=payload, verify=False)
     root = ET.fromstring(res.content)
@@ -25,8 +25,13 @@ def get_seguiments(docid, _type="source"):
     for child in root.findall(".//%strans-unit" % namespace):
         id = child.attrib['resname']
         try:
-            section = child.find(".//%s%s" % (namespace, _type))
-            seguiments[id] = section.text
+            target = child.find(".//%s%s" % (namespace, "target"))
+            source = child.find(".//%s%s" % (namespace, "source"))
+            seguiments[id] = {
+                "translation":  target.text,
+                "source":  source.text,
+                "id":  id
+            }
         except:
             pass
     return seguiments
@@ -54,19 +59,7 @@ def get_all_seguiments_by_project(project_id):
         for doc in proj["document"]:
             seguiments = get_seguiments(doc["id"])
             for id in seguiments:
-                all_seguiments[id] = seguiments[id]
-    return all_seguiments
-
-def get_all_translated_seguiments_by_project(project_id):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
-    res = requests.get(lilt_api_url + "/projects", params=payload, verify=False)
-    allproj = res.json()
-    all_seguiments = {}
-    for proj in allproj:
-        for doc in proj["document"]:
-            seguiments = get_seguiments(doc["id"], _type="target")
-            for id in seguiments:
-                all_seguiments[id] = seguiments[id]
+                all_seguiments[seguiments[id]['id']] = seguiments[id]
     return all_seguiments
 
 def delete_document(docid):
@@ -74,7 +67,7 @@ def delete_document(docid):
     res = requests.delete(lilt_api_url + "/documents", params=payload, verify=False)
 
 def upload_document(filename, project_id):
-    all_seguiments = get_all_translated_seguiments_by_project(project_id)
+    all_seguiments = get_all_seguiments_by_project(project_id)
     payload = {"key": os.environ["LILT_API_KEY"]}
     jsonData = {"name": filename, "project_id": project_id}
     headers = { "LILT-API": json.dumps(jsonData), "Content-Type": "application/octet-stream" }
@@ -84,25 +77,26 @@ def upload_document(filename, project_id):
 
     local_seguiments = json.loads(rawdata)
 
-    for id in local_seguiments:
-        if not (id in all_seguiments):
-            all_seguiments[id] = local_seguiments[id]
+    new_seguiments = {}
+    for localseguiment in local_seguiments:
+        if localseguiment in all_seguiments:
+            new_seguiments[localseguiment] = all_seguiments[localseguiment]['source']
+        else:
+            new_seguiments[localseguiment] = localseguiment
 
-    res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(all_seguiments), headers=headers, verify=False)
+    res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(new_seguiments), headers=headers, verify=False)
     document_id = res.json()["id"]
 
     time.sleep(2)
 
     pretranslate_document(document_id)
+    pretranslate_document(document_id)
 
     return document_id
 
-def download_document(filename, docid):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": docid, "is_xliff": "false"}
-    res = requests.get(lilt_api_url + "/documents/files", params=payload, verify=False)
-    seguiments = json.loads(res.content)
-    for id in seguiments:
-        all_seguiments[id] = seguiments[id]
-
-    with open(filename, 'w') as outfile:
-        json.dump(all_seguiments, outfile, indent=2, sort_keys=True)
+def download_document(project_id):
+    all_seguiments = get_all_seguiments_by_project(project_id)
+    new_document = {}
+    for id in all_seguiments:
+        new_document[all_seguiments[id]['source']] = all_seguiments[id]['translation']
+    return json.dumps(new_document, indent=2, sort_keys=True)

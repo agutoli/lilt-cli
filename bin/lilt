@@ -4,7 +4,7 @@ import os.path
 import argparse
 import sys, os
 
-from lilt_cli import (upload_document, get_all_documents, delete_document, get_all_translated_seguiments_by_project)
+from lilt_cli import (upload_document, get_all_documents, download_document, delete_document, get_all_seguiments_by_project)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(help='commands')
@@ -47,7 +47,8 @@ if not os.environ["LILT_API_KEY"]:
 
 if 'download_action' in args:
     print("Downloading seguiments...")
-    content = json.dumps(get_all_translated_seguiments_by_project(args.project_id), indent=2, sort_keys=True)
+    content = download_document(args.project_id)
+    # content = json.dumps(get_all_seguiments_by_project(args.project_id), indent=2, sort_keys=True)
     dir_path = os.path.join(os.getcwd(), args.output_file)
     file = open(dir_path, "w")
     file.write(content)
