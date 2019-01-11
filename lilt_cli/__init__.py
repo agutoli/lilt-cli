@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import datetime
 import requests
 import xml.etree.ElementTree as ET
 
@@ -69,8 +70,9 @@ def delete_document(docid):
 
 def upload_document(filename, project_id):
     all_seguiments = get_all_seguiments_by_project(project_id)
+    date = '{date:%Y_%m_%d-%H_%M_%S}'.format(date=datetime.datetime.now())
     payload = {"key": os.environ["LILT_API_KEY"]}
-    jsonData = {"name": filename, "project_id": project_id}
+    jsonData = {"name": "%s-%s" % (date, filename), "project_id": project_id}
     headers = { "LILT-API": json.dumps(jsonData), "Content-Type": "application/octet-stream" }
 
     with open(filename, 'r') as fp:
@@ -88,19 +90,14 @@ def upload_document(filename, project_id):
             # new_seguiments[all_seguiments[localseguiment]['translation']] = localseguiment
             new_seguiments[localseguiment] = localseguiment
 
-    for seguiment in all_seguiments:
-        if not seguiment in new_seguiments:
-            new_seguiments[all_seguiments[seguiment]['translation']] = all_seguiments[seguiment]['source']
+    if new_seguiments:
+        res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(new_seguiments), headers=headers, verify=False)
+        document_id = res.json()["id"]
+        time.sleep(2)
+        pretranslate_document(document_id)
 
-    res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(new_seguiments), headers=headers, verify=False)
-    document_id = res.json()["id"]
-
-    time.sleep(2)
-
-    pretranslate_document(document_id)
-    pretranslate_document(document_id)
-
-    return document_id
+        return document_id
+    return None
 
 def download_document(project_id):
     all_seguiments = get_all_seguiments_by_project(project_id)
