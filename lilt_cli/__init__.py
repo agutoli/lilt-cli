@@ -74,7 +74,7 @@ def delete_document(docid):
     res = requests.delete(lilt_api_url + "/documents", params=payload, verify=False)
 
 def upload_document(filename, project_id):
-    all_seguiments = get_all_seguiments_by_project(project_id)
+    all_seguiments = get_all_translated_seguiments_by_project(project_id)
     payload = {"key": os.environ["LILT_API_KEY"]}
     jsonData = {"name": filename, "project_id": project_id}
     headers = { "LILT-API": json.dumps(jsonData), "Content-Type": "application/octet-stream" }
@@ -85,7 +85,8 @@ def upload_document(filename, project_id):
     local_seguiments = json.loads(rawdata)
 
     for id in local_seguiments:
-        all_seguiments[id] = local_seguiments[id]
+        if not (id in all_seguiments):
+            all_seguiments[id] = local_seguiments[id]
 
     res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(all_seguiments), headers=headers, verify=False)
     document_id = res.json()["id"]
