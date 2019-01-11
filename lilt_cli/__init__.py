@@ -57,6 +57,7 @@ def get_all_seguiments_by_project(project_id):
             continue
 
         for doc in proj["document"]:
+            pretranslate_document(doc["id"])
             seguiments = get_seguiments(doc["id"])
             for id in seguiments:
                 all_seguiments[seguiments[id]['id']] = seguiments[id]
