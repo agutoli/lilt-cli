@@ -15,27 +15,33 @@ def pretranslate_document(document_id):
     jsonData = { "id": document_id}
     headers = { "Content-Type": "application/json" }
     res = requests.post(lilt_api_url + "/documents/pretranslate", params=payload, data=json.dumps(jsonData), headers=headers, verify=False)
-    return res.json()
+    try:
+        return res.json()
+    except:
+        return res
 
 def get_seguiments(docid):
     payload = {"key": os.environ["LILT_API_KEY"], "id": docid, "is_xliff": "true"}
     res = requests.get(lilt_api_url + "/documents/files", params=payload, verify=False)
-    root = ET.fromstring(res.content)
-    namespace = '{urn:oasis:names:tc:xliff:document:1.2}'
-    seguiments = {}
-    for child in root.findall(".//%strans-unit" % namespace):
-        id = child.attrib['resname']
-        try:
-            target = child.find(".//%s%s" % (namespace, "target"))
-            source = child.find(".//%s%s" % (namespace, "source"))
-            seguiments[id] = {
-                "translation":  target.text,
-                "source":  source.text,
-                "id":  id
-            }
-        except:
-            pass
-    return seguiments
+    try:
+        root = ET.fromstring(res.content)
+        namespace = '{urn:oasis:names:tc:xliff:document:1.2}'
+        seguiments = {}
+        for child in root.findall(".//%strans-unit" % namespace):
+            id = child.attrib['resname']
+            try:
+                target = child.find(".//%s%s" % (namespace, "target"))
+                source = child.find(".//%s%s" % (namespace, "source"))
+                seguiments[id] = {
+                    "translation":  target.text,
+                    "source":  source.text,
+                    "id":  id
+                }
+            except:
+                pass
+        return seguiments
+    except:
+        return []
 
 def get_all_documents(project_id, name=None):
     payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
