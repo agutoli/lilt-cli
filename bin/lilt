@@ -36,10 +36,14 @@ if 'download_action' in args:
     print("Downloading segments...")
     content = download_document(args.filename,
         args.project_id, args.is_confirmed, args.is_reviewed)
-    dir_path = os.path.join(os.getcwd(), args.output_file)
-    file = open(dir_path, "w")
-    file.write(content)
-    file.close()
+
+    if not content:
+        print('file "%s" does not exists' % args.filename)
+    else:
+        dir_path = os.path.join(os.getcwd(), args.output_file)
+        file = open(dir_path, "w")
+        file.write(content)
+        file.close()
 
 if 'upload_action' in args:
     print("Uploading terms...")

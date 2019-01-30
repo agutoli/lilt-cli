@@ -64,7 +64,7 @@ def upload_segments(filename, project_id):
         print('Creating document "%s"' % filename)
         document = create_document(project_id, filename)
 
-    segments = get_segments(document['id'])
+    segments = get_segments(document['id'], None, None)
 
     sources = []
     for segment in segments:
@@ -81,5 +81,7 @@ def upload_segments(filename, project_id):
 
 def download_document(filename, project_id, is_confirmed, is_reviewed):
     document = get_document_by_name(filename, project_id)
+    if not document:
+        return None
     segments = get_segments(document['id'], is_confirmed, is_reviewed)
     return json.dumps(segments, indent=2, sort_keys=True)
