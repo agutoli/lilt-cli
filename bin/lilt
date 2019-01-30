@@ -4,7 +4,7 @@ import os.path
 import argparse
 import sys, os
 
-from lilt_cli import (upload_document, get_all_documents, download_document, delete_document, get_all_seguiments_by_project)
+from lilt_cli import (upload_segments, download_document)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(help='commands')
@@ -12,7 +12,10 @@ subparsers = parser.add_subparsers(help='commands')
 # # A create command
 download_parser = subparsers.add_parser('download', help='download translations')
 download_parser.add_argument('--api-key', action='store', help='API Key Authentication')
+download_parser.add_argument('--is-confirmed', action='store_true', default=None, help='download confirmed term only')
+download_parser.add_argument('--is-reviewed', action='store_true', default=None, help='download reviwed term only')
 download_parser.add_argument('--project-id', required=True, action='store', help='project id')
+download_parser.add_argument('--filename', required=True, action='store', help='keys filename')
 download_parser.add_argument('--output-file', required=True, action='store', help='file output name')
 download_parser.add_argument('download_action', action='store_true')
 
@@ -22,22 +25,6 @@ upload_parser.add_argument('--project-id', required=True, action='store', help='
 upload_parser.add_argument('--filename', required=True, action='store', help='keys filename')
 upload_parser.add_argument('upload_action', action='store_true')
 
-delete_doc_parser = subparsers.add_parser('delete-document', help='delete document')
-delete_doc_parser.add_argument('--api-key', action='store', help='API Key Authentication')
-delete_doc_parser.add_argument('--document-id', required=True, action='store', help='document id')
-delete_doc_parser.add_argument('delete_document_action', action='store_true')
-
-delete_oldest_doc_parser = subparsers.add_parser('delete-oldest-document', help='delete oldest document')
-delete_oldest_doc_parser.add_argument('--api-key', action='store', help='API Key Authentication')
-delete_oldest_doc_parser.add_argument('--project-id', required=True, action='store', help='project id')
-delete_oldest_doc_parser.add_argument('--name', required=True, action='store', help='name of document')
-delete_oldest_doc_parser.add_argument('delete_oldest_document_action', action='store_true')
-
-list_documents_parser = subparsers.add_parser('list-documents', help='upload terms')
-list_documents_parser.add_argument('--api-key', action='store', help='API Key Authentication')
-list_documents_parser.add_argument('--project-id', required=True, action='store', help='document id')
-list_documents_parser.add_argument('list_documents_action', action='store_true')
-
 args = parser.parse_args()
 
 os.environ["LILT_API_KEY"] = args.api_key or os.environ.get("LILT_API_KEY", "")
@@ -46,9 +33,9 @@ if not os.environ["LILT_API_KEY"]:
     raise Exception('set "env LILT_API_KEY" or pass "--api-key" parameter!')
 
 if 'download_action' in args:
-    print("Downloading seguiments...")
-    content = download_document(args.project_id)
-    # content = json.dumps(get_all_seguiments_by_project(args.project_id), indent=2, sort_keys=True)
+    print("Downloading segments...")
+    content = download_document(args.filename,
+        args.project_id, args.is_confirmed, args.is_reviewed)
     dir_path = os.path.join(os.getcwd(), args.output_file)
     file = open(dir_path, "w")
     file.write(content)
@@ -56,25 +43,5 @@ if 'download_action' in args:
 
 if 'upload_action' in args:
     print("Uploading terms...")
-    document_id = upload_document(args.filename, args.project_id)
+    document_id = upload_segments(args.filename, args.project_id)
     print("New document created! #%s" % document_id)
-
-if 'delete_document_action' in args:
-    print("Deleting document...")
-    delete_document(args.document_id)
-    print("Document deleted!")
-
-if 'delete_oldest_document_action' in args:
-    print("Deleting oldest document...")
-    docs = get_all_documents(args.project_id, name=args.name)
-    if len(docs) < 3:
-        raise Exception("Project should have at least 3 documents before executing this command!")
-    doc = docs[0]
-    document_id = delete_document(doc["id"])
-    print("Document '%s' deleted!" % doc["id"])
-
-if 'list_documents_action' in args:
-    print("Listing documents...")
-    docs = get_all_documents(args.project_id)
-    for doc in docs:
-        print(json.dumps(doc, indent=2))

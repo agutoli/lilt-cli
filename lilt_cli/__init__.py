@@ -10,104 +10,76 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 lilt_api_url = "https://lilt.com/2"
 
-def pretranslate_document(document_id):
-    payload = {"key": os.environ["LILT_API_KEY"]}
-    jsonData = { "id": document_id}
+def get_project(project_id):
+    payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
+    res = requests.get(lilt_api_url + "/projects", params=payload, verify=False)
+    return res.json()[0]
+
+def get_document_by_name(name, project_id):
+    project = get_project(project_id)
+    document = None
+    for doc in project["document"]:
+        if name == doc['name']:
+            print('Updating document "%s"' % name)
+            document = doc
+            break
+    return document
+
+def create_segment(document_id, term):
+    payload = { "key": os.environ["LILT_API_KEY"] }
+    body = { "document_id": document_id, "source": term, "target": term }
     headers = { "Content-Type": "application/json" }
-    res = requests.post(lilt_api_url + "/documents/pretranslate", params=payload, data=json.dumps(jsonData), headers=headers, verify=False)
-    try:
-        return res.json()
-    except:
-        return res
+    res = requests.post(lilt_api_url + "/segments", params=payload, data=json.dumps(body), headers=headers)
+    return res.json()
 
-def get_seguiments(docid):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": docid, "is_xliff": "true"}
-    res = requests.get(lilt_api_url + "/documents/files", params=payload, verify=False)
-    try:
-        root = ET.fromstring(res.content)
-        namespace = '{urn:oasis:names:tc:xliff:document:1.2}'
-        seguiments = {}
-        for child in root.findall(".//%strans-unit" % namespace):
-            id = child.attrib['resname']
-            try:
-                target = child.find(".//%s%s" % (namespace, "target"))
-                source = child.find(".//%s%s" % (namespace, "source"))
-                seguiments[id] = {
-                    "translation":  target.text,
-                    "source":  source.text,
-                    "id":  id
-                }
-            except:
-                pass
-        return seguiments
-    except:
-        return []
+def create_document(project_id, name):
+    payload = { "key": os.environ["LILT_API_KEY"]}
+    data = { "name": name, "project_id": project_id }
+    headers = { "Content-Type": "application/json" }
+    res = requests.post(lilt_api_url + "/documents", params=payload, data=json.dumps(data), headers=headers)
+    return res.json()
 
-def get_all_documents(project_id, name=None):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
-    res = requests.get(lilt_api_url + "/projects", params=payload, verify=False)
-    allproj = res.json()
-    documents = []
-    for proj in allproj:
-        for doc in proj["document"]:
-            if name == doc['name']:
-                documents.append(doc)
-    return documents
+def get_segments(document_id, is_confirmed, is_reviewed):
+    payload = { "key": os.environ["LILT_API_KEY"], "id": document_id }
+    res = requests.get(lilt_api_url + "/documents?with_segments=true", params=payload, verify=False)
+    segments = res.json()['segments']
 
-def get_all_seguiments_by_project(project_id):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": project_id}
-    res = requests.get(lilt_api_url + "/projects", params=payload, verify=False)
-    allproj = res.json()
-    all_seguiments = {}
-    for proj in allproj:
-        if not 'document' in proj:
-            continue
+    has_filter = is_confirmed != None or is_reviewed != None
 
-        for doc in proj["document"]:
-            pretranslate_document(doc["id"])
-            seguiments = get_seguiments(doc["id"])
-            for id in seguiments:
-                all_seguiments[seguiments[id]['id']] = seguiments[id]
-    return all_seguiments
+    if not has_filter:
+        return segments
 
-def delete_document(docid):
-    payload = {"key": os.environ["LILT_API_KEY"], "id": docid}
-    res = requests.delete(lilt_api_url + "/documents", params=payload, verify=False)
+    filtered_segments = []
+    for segment in segments:
+        if is_confirmed != None and segment['is_confirmed'] == is_confirmed:
+            filtered_segments.append(segment)
+        elif is_reviewed != None and segment['is_reviewed'] == is_reviewed:
+            filtered_segments.append(segment)
+    return filtered_segments
 
-def upload_document(filename, project_id):
-    all_seguiments = get_all_seguiments_by_project(project_id)
-    date = '{date:%Y_%m_%d-%H_%M_%S}'.format(date=datetime.datetime.now())
-    payload = {"key": os.environ["LILT_API_KEY"]}
-    jsonData = {"name": "%s-%s" % (date, filename), "project_id": project_id}
-    headers = { "LILT-API": json.dumps(jsonData), "Content-Type": "application/octet-stream" }
+def upload_segments(filename, project_id):
+    document = get_document_by_name(filename, project_id)
+
+    if not document:
+        print('Creating document "%s"' % filename)
+        document = create_document(project_id, filename)
+
+    segments = get_segments(document['id'])
+
+    sources = []
+    for segment in segments:
+        sources.append(segment['source'])
 
     with open(filename, 'r') as fp:
         rawdata = fp.read()
 
-    local_seguiments = json.loads(rawdata)
+    file_segments = json.loads(rawdata)
+    for segment in file_segments:
+        if not (segment in sources):
+            create_segment(document['id'], segment)
+    return
 
-    all_terms = {}
-    for seguiment in all_seguiments:
-        all_terms[all_seguiments[seguiment]['source']] = seguiment
-
-    new_seguiments = {}
-    for localseguiment in local_seguiments:
-        if not ((localseguiment in all_seguiments) or (localseguiment in all_terms)):
-            # new_seguiments[all_seguiments[localseguiment]['translation']] = localseguiment
-            new_seguiments[localseguiment] = localseguiment
-
-    if new_seguiments:
-        res = requests.post(lilt_api_url + "/documents/files", params=payload, data=json.dumps(new_seguiments), headers=headers, verify=False)
-        document_id = res.json()["id"]
-        time.sleep(2)
-        pretranslate_document(document_id)
-
-        return document_id
-    return None
-
-def download_document(project_id):
-    all_seguiments = get_all_seguiments_by_project(project_id)
-    new_document = {}
-    for id in all_seguiments:
-        new_document[all_seguiments[id]['source']] = all_seguiments[id]['translation']
-    return json.dumps(new_document, indent=2, sort_keys=True)
+def download_document(filename, project_id, is_confirmed, is_reviewed):
+    document = get_document_by_name(filename, project_id)
+    segments = get_segments(document['id'], is_confirmed, is_reviewed)
+    return json.dumps(segments, indent=2, sort_keys=True)
